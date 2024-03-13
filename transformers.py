@@ -300,12 +300,12 @@ def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
     model.eval()
     
     # Debug: Print initial state
-    print(f"Initial device: {device}")
+    #print(f"Initial device: {device}")
     
     y_input = torch.tensor([[SOS_token]], dtype=torch.long, device=device)
 
     # Debug: Print initial y_input
-    print(f"Initial y_input: {y_input}")
+    #print(f"Initial y_input: {y_input}")
     
     num_tokens = len(input_sequence[0])
 
@@ -314,7 +314,7 @@ def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
         tgt_mask = model.get_tgt_mask(y_input.size(1)).to(device)
         
         # Debug: Print target mask shape
-        print(f"Target mask shape at step {i}: {tgt_mask.shape}")
+        #print(f"Target mask shape at step {i}: {tgt_mask.shape}")
         
         pred = model(input_sequence, y_input, tgt_mask)
         
@@ -322,7 +322,7 @@ def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
         next_item = pred.topk(1)[1].view(-1)[-1].item() # num with highest probability
         
         # Debug: Print predicted next item
-        print(f"Predicted next item at step {i}: {next_item}")
+        #print(f"Predicted next item at step {i}: {next_item}")
         
         next_item = torch.tensor([[next_item]], device=device)
 
@@ -331,15 +331,14 @@ def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
         y_input = torch.cat((y_input, next_item), dim=1)
         
         # Debug: Print updated y_input
-        print(f"Updated y_input at step {i}: {y_input}")
+        #print(f"Updated y_input at step {i}: {y_input}")
 
         # Stop if model predicts end of sentence
         if next_item.view(-1).item() == EOS_token:
-            print(f"EOS token encountered at step {i}. Ending prediction.")
+            #print(f"EOS token encountered at step {i}. Ending prediction.")
             break
-        else:
             # Debug: If not EOS, show that we're continuing
-            print(f"Continuing prediction at step {i}...")
+            #print(f"Continuing prediction at step {i}...")
     # Debug: Final output before returning
-    print(f"Final output: {y_input.view(-1).tolist()}")
+    #print(f"Final output: {y_input.view(-1).tolist()}")
     return y_input.view(-1).tolist()
