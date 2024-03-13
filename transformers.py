@@ -4,6 +4,7 @@ import math
 import numpy as np
 import random
 
+
 class PositionalEncoding(nn.Module):
     def __init__(self, dim_model, dropout_p, max_len):
         super().__init__()
@@ -30,6 +31,7 @@ class PositionalEncoding(nn.Module):
         
     def forward(self, token_embedding: torch.tensor) -> torch.tensor:
         # Residual connection + pos encoding
+        
         return self.dropout(token_embedding + self.pos_encoding[:token_embedding.size(0), :])
 
 
@@ -86,6 +88,7 @@ class Transformer(nn.Module):
         # Transformer blocks - Out size = (sequence length, batch_size, num_tokens)
         transformer_out = self.transformer(src, tgt, tgt_mask=tgt_mask, src_key_padding_mask=src_pad_mask, tgt_key_padding_mask=tgt_pad_mask)
         out = self.out(transformer_out)
+        #print(out.shape)
         
         return out
       
@@ -153,7 +156,7 @@ def generate_random_data(n):
     return data
 
 
-def batchify_data(data, batch_size=16, padding=False, padding_token=-1):
+def batchify_data(data, batch_size=16, padding=False, padding_token=-2):
     batches = []
     for idx in range(0, len(data), batch_size):
         # We make sure we dont get the last bit if its not batch_size size
@@ -188,8 +191,11 @@ def train_loop(model, opt, loss_fn, dataloader):
     model.train()
     total_loss = 0
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    # i=0
     for batch in dataloader:
+        # if i==1:
+        #     print("tgt: {y_expected}")
+        #     i=i+1
         X, y = batch[:, 0], batch[:, 1]
         X, y = torch.tensor(X).to(device), torch.tensor(y).to(device)
 
@@ -211,7 +217,10 @@ def train_loop(model, opt, loss_fn, dataloader):
         opt.zero_grad()
         loss.backward()
         opt.step()
-    
+
+
+        #print(f"Prediction: {pred}, Expected: {y_expected}")
+        #print()  # Print a newline for better readability
         total_loss += loss.detach().item()
         
     return total_loss / len(dataloader)
@@ -229,7 +238,7 @@ def validation_loop(model, loss_fn, dataloader):
     with torch.no_grad():
         for batch in dataloader:
             X, y = batch[:, 0], batch[:, 1]
-            X, y = torch.tensor(X, dtype=torch.long, device=device), torch.tensor(y, dtype=torch.long, device=device)
+            X, y =torch.tensor(X).to(device), torch.tensor(y).to(device) #torch.tensor(X, dtype=float ,device=device), torch.tensor(y, dtype=float,device=device)
 
             # Now we shift the tgt by one so with the <SOS> we predict the token at pos 1
             y_input = y[:,:-1]
@@ -241,9 +250,10 @@ def validation_loop(model, loss_fn, dataloader):
 
             # Standard training except we pass in y_input and src_mask
             pred = model(X, y_input, tgt_mask)
-
+            
             # Permute pred to have batch size first again
-            pred = pred.permute(1, 2, 0)      
+            pred = pred.permute(1, 2, 0)  
+            #print(pred, y_expected)    
             loss = loss_fn(pred, y_expected)
             total_loss += loss.detach().item()
         
@@ -278,6 +288,7 @@ def fit(model:nn.Transformer, train_dataloader, val_dataloader, epochs):
         print()
         
     return train_loss_list, validation_loss_list
+
     
 def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
     """
@@ -288,24 +299,47 @@ def predict(model, input_sequence, max_length=15, SOS_token=2, EOS_token=3):
 
     model.eval()
     
+    # Debug: Print initial state
+    print(f"Initial device: {device}")
+    
     y_input = torch.tensor([[SOS_token]], dtype=torch.long, device=device)
 
+    # Debug: Print initial y_input
+    print(f"Initial y_input: {y_input}")
+    
     num_tokens = len(input_sequence[0])
 
-    for _ in range(max_length):
+    for i in range(max_length):
         # Get source mask
         tgt_mask = model.get_tgt_mask(y_input.size(1)).to(device)
         
+        # Debug: Print target mask shape
+        print(f"Target mask shape at step {i}: {tgt_mask.shape}")
+        
         pred = model(input_sequence, y_input, tgt_mask)
         
+
         next_item = pred.topk(1)[1].view(-1)[-1].item() # num with highest probability
+        
+        # Debug: Print predicted next item
+        print(f"Predicted next item at step {i}: {next_item}")
+        
         next_item = torch.tensor([[next_item]], device=device)
+
 
         # Concatenate previous input with predicted best word
         y_input = torch.cat((y_input, next_item), dim=1)
+        
+        # Debug: Print updated y_input
+        print(f"Updated y_input at step {i}: {y_input}")
 
         # Stop if model predicts end of sentence
         if next_item.view(-1).item() == EOS_token:
+            print(f"EOS token encountered at step {i}. Ending prediction.")
             break
-
+        else:
+            # Debug: If not EOS, show that we're continuing
+            print(f"Continuing prediction at step {i}...")
+    # Debug: Final output before returning
+    print(f"Final output: {y_input.view(-1).tolist()}")
     return y_input.view(-1).tolist()
