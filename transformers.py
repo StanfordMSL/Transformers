@@ -60,7 +60,7 @@ class Transformer(nn.Module):
         self.positional_encoder = PositionalEncoding(
             dim_model=dim_model, dropout_p=dropout_p, max_len=5000
         )
-        self.embedding = nn.Embedding(num_tokens, dim_model)
+        self.embedding = nn.Embedding(num_tokens, dim_model) #change token for mse predict next value/do we need embedding
         self.transformer = nn.Transformer(
             d_model=dim_model,
             nhead=num_heads,
@@ -87,7 +87,7 @@ class Transformer(nn.Module):
 
         # Transformer blocks - Out size = (sequence length, batch_size, num_tokens)
         transformer_out = self.transformer(src, tgt, tgt_mask=tgt_mask, src_key_padding_mask=src_pad_mask, tgt_key_padding_mask=tgt_pad_mask)
-        out = self.out(transformer_out)
+        out = self.out(transformer_out) #out should have dim of 1
         #print(out.shape)
         
         return out
